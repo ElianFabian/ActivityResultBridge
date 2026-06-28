@@ -1,0 +1,1 @@
+-keep class com.elianfabian.activity_result_bridge.ActivityResultBridge { *; }
