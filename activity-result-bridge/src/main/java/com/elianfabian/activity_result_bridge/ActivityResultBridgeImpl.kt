@@ -49,6 +49,9 @@ internal class ActivityResultBridgeImpl : ActivityResultBridge {
 
 			@Suppress("UNCHECKED_CAST")
 			val launcher: ActivityResultLauncherState<I, O> = _launchersStateByKey.getOrPut(key) {
+
+				// The way we handle the activity result registration is based on the rememberLauncherForActivityResult()
+				// implementation from compose
 				val callback = ActivityResultCallback<O> { result ->
 					_launchersStateByKey.remove(key)?.realLauncher?.unregister()
 
