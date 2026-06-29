@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class MainViewModel(
-	private val activityResultBridge: ActivityResultBridge = ActivityResultBridge,
+	private val activityResultBridge: ActivityResultBridge = ActivityResultBridge.getInstance(),
 ) : ViewModel() {
 
 	private val _uiState = MutableStateFlow(UiState())
