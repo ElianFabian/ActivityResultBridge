@@ -10,7 +10,6 @@ A lightweight Kotlin library that decouples Android's Activity Result API from t
 - **🏗️ Architecture Friendly**: Keep your ViewModels clean from Activity references.
 - **🔄 Lifecycle Safe**: Automatically handles registration tokens and ensures safety against configuration changes (like screen rotation).
 - **🧪 Test Ready**: Includes a `FakeActivityResultBridge` for isolated unit testing.
-- **📦 Seamless Integration**: Uses the standard `ActivityResultContract` from Android Jetpack.
 
 ## Installation
 
