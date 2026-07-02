@@ -1,6 +1,6 @@
 # Activity Result Bridge
 
-[![JitPack](https://jitpack.io/v/ElianFabian/ActivityResultBridge.svg)](https://jitpack.io/project/ElianFabian/ActivityResultBridge)
+[![](https://jitpack.io/v/ElianFabian/ActivityResultBridge.svg)](https://jitpack.io/#ElianFabian/ActivityResultBridge)
 
 A lightweight Kotlin library that decouples Android's Activity Result API from the UI layer (Activity/Fragment) by leveraging Kotlin Coroutines. It abstracts the traditional lifecycle-bound registration and callback mechanics into a clean, modern suspending function.
 
