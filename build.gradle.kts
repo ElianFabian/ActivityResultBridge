@@ -13,7 +13,10 @@ subprojects {
 	if (name in libraryModules) {
 		val libs = rootProject.extensions.getByType<VersionCatalogsExtension>().named("libs")
 		group = libs.findVersion("activityResultBridgeProviderGroup").get().requiredVersion
-		version = libs.findVersion("activityResultBridgeProviderVersion").get().requiredVersion
+
+		// If JitPack injects a version from the Git tag, use it. Otherwise, fall back to the TOML version for local builds.
+		val tomlVersion = libs.findVersion("activityResultBridgeProviderVersion").get().requiredVersion
+		version = if (project.version == "unspecified") tomlVersion else project.version
 
 		plugins.withId("com.android.library") {
 			plugins.apply("maven-publish")
