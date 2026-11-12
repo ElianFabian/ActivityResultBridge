@@ -15,6 +15,10 @@ public interface ActivityResultBridge {
 	 * This method handles the registration token under the hood and ensures safety against
 	 * common Android runtime anomalies like runtime configuration changes (screen rotation).
 	 *
+	 * Launching, registration, and cleanup run on the main thread, including cancellation
+	 * from a background dispatcher. A pending request releases the destroyed activity
+	 * and reconnects to the provider after configuration recreation.
+	 *
 	 * @param I The input type required by the contract.
 	 * @param O The expected output type returned by the contract.
 	 * @param contract The [ActivityResultContract] defining the intent creation and result parsing logic.

@@ -10,6 +10,7 @@ android {
 
 	defaultConfig {
 		minSdk = 21
+		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
 		testInstrumentationRunnerArguments["clearPackageData"] = "true"
 
@@ -26,6 +27,7 @@ android {
 	}
 	testOptions {
 		execution = "ANDROIDX_TEST_ORCHESTRATOR"
+		unitTests.isIncludeAndroidResources = true
 	}
 	compileOptions {
 		sourceCompatibility = JavaVersion.VERSION_11
@@ -42,6 +44,7 @@ dependencies {
 	implementation(libs.kotlinxCoroutinesAndroid)
 
 	testImplementation(libs.junit)
+	testImplementation(libs.robolectric)
 	testImplementation(libs.kotlinxCoroutinesTest)
 	androidTestUtil(libs.androidx.orchestrator)
 	androidTestImplementation(libs.kotlinxCoroutinesTest)

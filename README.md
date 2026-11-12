@@ -100,6 +100,10 @@ class MainViewModelTest {
 
 The bridge uses a singleton `ActivityResultBridgeImpl` that tracks the current `ComponentActivity` via an internal `ActivityProvider`. When you call `launch`, it registers a temporary callback in the activity's `ActivityResultRegistry` and suspends the coroutine. Once the result is received, the coroutine resumes and the launcher is automatically unregistered.
 
+Registration, launching, and cleanup run on the main thread even when called or cancelled from another dispatcher. Failed launches and cancelled coroutines release their registrations. During configuration recreation, the bridge releases the destroyed activity and reconnects pending requests with the same keys. A result delivered immediately while registering is also cleaned up.
+
+This recovery applies within the same process. Pending requests follow the latest activity supplied by ActivityProvider; independent ownership across multiple simultaneous activities is not provided.
+
 ## License
 
 ```text

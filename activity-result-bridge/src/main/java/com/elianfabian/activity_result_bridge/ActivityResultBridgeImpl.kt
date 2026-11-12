@@ -1,87 +1,82 @@
 package com.elianfabian.activity_result_bridge
 
+import androidx.activity.ComponentActivity
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.contract.ActivityResultContract
 import com.elianfabian.activity_provider.ActivityProvider
-import com.elianfabian.activity_result_bridge.util.ActivityResultLauncherHolder
 import com.elianfabian.activity_result_bridge.util.ActivityResultLauncherState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
-internal class ActivityResultBridgeImpl : ActivityResultBridge {
+internal class ActivityResultBridgeImpl(
+	private val activityFlow: StateFlow<ComponentActivity?> = ActivityProvider.activity,
+	scope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob()),
+) : ActivityResultBridge {
 
-	private val _scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
-
-	private val _launchersStateByKey = ConcurrentHashMap<String, ActivityResultLauncherState<Any?, Any?>>()
-
+	// Accessed only on Main, including callbacks and cancellation cleanup.
+	private val _launchersStateByKey = mutableMapOf<String, ActivityResultLauncherState<*, *>>()
 
 	init {
-		_scope.launch {
-			ActivityProvider.activity.collect { activity ->
-				if (activity == null) {
-					return@collect
-				}
-				_launchersStateByKey.forEach { (key, state) ->
-					state.realLauncher.unregister()
-
-					state.realLauncher.launcher = activity.activityResultRegistry.register(
-						key = key,
-						contract = state.contract,
-						callback = state.callback,
-					)
+		scope.launch(Dispatchers.Main.immediate) {
+			activityFlow.collect { activity ->
+				// register() can deliver a pending result and modify the map immediately.
+				_launchersStateByKey.toList().forEach { (key, state) ->
+					if (_launchersStateByKey[key] !== state) return@forEach
+					if (activity == null) {
+						state.realLauncher.unregister()
+					} else {
+						try {
+							state.register(activity, key) { _launchersStateByKey[key] === state }
+						} catch (exception: Exception) {
+							state.onFailure(exception)
+						}
+					}
 				}
 			}
 		}
 	}
 
-
-	override suspend fun <I, O> launch(contract: ActivityResultContract<I, O>, input: I): O {
-		val activity = ActivityProvider.getActivity()
-
-		return suspendCancellableCoroutine { continuation ->
+	override suspend fun <I, O> launch(contract: ActivityResultContract<I, O>, input: I): O =
+		withContext(Dispatchers.Main.immediate) {
+			val activity = activityFlow.filterNotNull().first()
 			val key = UUID.randomUUID().toString()
-
-			@Suppress("UNCHECKED_CAST")
-			val launcher: ActivityResultLauncherState<I, O> = _launchersStateByKey.getOrPut(key) {
-
-				// The way we handle the activity result registration is based on the rememberLauncherForActivityResult()
-				// implementation from compose
-				val callback = ActivityResultCallback<O> { result ->
-					_launchersStateByKey.remove(key)?.realLauncher?.unregister()
-
-					if (continuation.isActive) {
-						continuation.resume(result)
+			try {
+				suspendCancellableCoroutine { continuation ->
+					if (!continuation.isActive) return@suspendCancellableCoroutine
+					val state = ActivityResultLauncherState(
+						contract = contract,
+						callback = ActivityResultCallback<O> { result ->
+							clear(key)
+							if (continuation.isActive) continuation.resume(result)
+						},
+						onFailure = { exception ->
+							clear(key)
+							if (continuation.isActive) continuation.resumeWithException(exception)
+						},
+					)
+					_launchersStateByKey[key] = state
+					state.register(activity, key) { _launchersStateByKey[key] === state && continuation.isActive }
+					if (continuation.isActive && _launchersStateByKey[key] === state) {
+						state.realLauncher.launch(input)
 					}
 				}
-
-				val launcher = activity.activityResultRegistry.register(
-					key = key,
-					contract = contract,
-					callback = callback,
-				)
-
-				val realLauncher = ActivityResultLauncherHolder<I>().apply {
-					this.launcher = launcher
-				}
-
-				ActivityResultLauncherState(
-					contract = contract,
-					callback = callback,
-					realLauncher = realLauncher,
-				) as ActivityResultLauncherState<Any?, Any?>
-			} as ActivityResultLauncherState<I, O>
-
-			continuation.invokeOnCancellation {
-				_launchersStateByKey.remove(key)?.realLauncher?.unregister()
+			} finally {
+				// Also runs on Main if launch throws or the caller cancels from another thread.
+				clear(key)
 			}
-
-			launcher.realLauncher.launch(input)
 		}
+
+	private fun clear(key: String) {
+		_launchersStateByKey.remove(key)?.realLauncher?.unregister()
 	}
 }
